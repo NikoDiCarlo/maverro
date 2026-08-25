@@ -1,77 +1,249 @@
-import OpenAI from "openai";
-import { rateLimit, sameOrigin } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  sameOrigin
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   if (!sameOrigin(request)) {
-    return Response.json({ error: "Forbidden." }, { status: 403 });
+    return Response.json(
+      {
+        error: "Forbidden."
+      },
+      {
+        status: 403
+      }
+    );
   }
 
-  const limit = rateLimit(request, "voice", 12, 10 * 60 * 1000);
+  const limit = rateLimit(
+    request,
+    "voice",
+    12,
+    10 * 60 * 1000
+  );
 
   if (!limit.ok) {
     return Response.json(
-      { error: "Voice limit reached. Try again shortly." },
+      {
+        error:
+          "Voice limit reached. Try again shortly."
+      },
       {
         status: 429,
         headers: {
-          "Retry-After": String(limit.retryAfter)
+          "Retry-After": String(
+            limit.retryAfter
+          )
         }
       }
     );
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey =
+    process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
     return Response.json(
-      { error: "OpenAI is not configured." },
-      { status: 500 }
+      {
+        error: "OpenAI is not configured."
+      },
+      {
+        status: 500
+      }
     );
   }
 
   try {
-    const session =
-      await openai.beta.realtime.transcriptionSessions.create({
-        input_audio_format: "pcm16",
-        input_audio_noise_reduction: {
-          type: "near_field"
+    /*
+     * Current Realtime API architecture:
+     *
+     * Permanent OpenAI key stays here on Vercel.
+     * This route creates a short-lived client secret.
+     * The browser receives only that temporary credential.
+     *
+     * Maverro uses a transcription-only session:
+     * voice in -> text out.
+     */
+    const response = await fetch(
+      "https://api.openai.com/v1/realtime/client_secrets",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
+          "Content-Type":
+            "application/json"
         },
-        input_audio_transcription: {
-          model: "gpt-live-transcribe",
-          language: "en",
-          prompt:
-            "Financial markets, equities, hedge funds, SEC filings, quantitative finance, Python, C++, tickers, company names and investment terminology."
+
+        body: JSON.stringify({
+          session: {
+            type: "transcription",
+
+            audio: {
+              input: {
+                /*
+                 * Realtime transcription uses 24 kHz PCM.
+                 */
+                format: {
+                  type: "audio/pcm",
+                  rate: 24000
+                },
+
+                /*
+                 * Laptop microphones are a far-field
+                 * use case.
+                 */
+                noise_reduction: {
+                  type: "far_field"
+                },
+
+                transcription: {
+                  model:
+                    "gpt-live-transcribe",
+
+                  language: "en",
+
+                  /*
+                   * Domain hints improve recognition of
+                   * financial and programming terminology.
+                   */
+                  keywords: [
+                    "Maverro",
+                    "SEC",
+                    "EDGAR",
+                    "10-K",
+                    "10-Q",
+                    "8-K",
+                    "EBITDA",
+                    "cRPO",
+                    "RPO",
+                    "free cash flow",
+                    "earnings",
+                    "guidance",
+                    "basis points",
+                    "Treasury",
+                    "Federal Reserve",
+                    "S&P 500",
+                    "Nasdaq",
+                    "Salesforce",
+                    "NVIDIA",
+                    "Python",
+                    "C++",
+                    "backtest",
+                    "quantitative"
+                  ]
+                },
+
+                /*
+                 * Maverro is push-to-talk / click-to-talk.
+                 *
+                 * The browser explicitly commits the turn
+                 * when the user stops the microphone.
+                 * This avoids double commits from VAD.
+                 */
+                turn_detection: null
+              }
+            }
+          }
+        }),
+
+        cache: "no-store"
+      }
+    );
+
+    const raw = await response.text();
+
+    if (!response.ok) {
+      console.error(
+        "OpenAI realtime client-secret error:",
+        response.status,
+        raw
+      );
+
+      return Response.json(
+        {
+          error:
+            "Voice transcription is temporarily unavailable."
         },
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.45,
-          prefix_padding_ms: 250,
-          silence_duration_ms: 500
+        {
+          status: 502
         }
-      } as any);
+      );
+    }
+
+    let data: any;
+
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      console.error(
+        "Invalid realtime client-secret response:",
+        raw
+      );
+
+      return Response.json(
+        {
+          error:
+            "Voice transcription is temporarily unavailable."
+        },
+        {
+          status: 502
+        }
+      );
+    }
+
+    if (
+      typeof data?.value !== "string"
+    ) {
+      console.error(
+        "Realtime client secret missing value:",
+        data
+      );
+
+      return Response.json(
+        {
+          error:
+            "Voice transcription is temporarily unavailable."
+        },
+        {
+          status: 502
+        }
+      );
+    }
 
     return Response.json(
       {
-        value: session.client_secret.value,
-        expiresAt: session.client_secret.expires_at
+        value: data.value,
+        expiresAt:
+          data.expires_at || null
       },
       {
         headers: {
-          "Cache-Control": "no-store"
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate"
         }
       }
     );
   } catch (error) {
-    console.error("Realtime token error:", error);
+    console.error(
+      "Realtime token error:",
+      error
+    );
 
     return Response.json(
-      { error: "Voice transcription is temporarily unavailable." },
-      { status: 502 }
+      {
+        error:
+          "Voice transcription is temporarily unavailable."
+      },
+      {
+        status: 502
+      }
     );
   }
 }
