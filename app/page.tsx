@@ -7,10 +7,14 @@ import {
   useRef,
   useState
 } from "react";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type Mode = "markets" | "research" | "code";
+type Mode =
+  | "markets"
+  | "research"
+  | "code";
 
 type Source = {
   url: string;
@@ -40,8 +44,10 @@ const MODES: Record<
 > = {
   markets: {
     title: "MARKETS",
-    description: "Understand what is happening.",
-    starter: "What do you want to know about the market?",
+    description:
+      "Understand what is happening.",
+    starter:
+      "What do you want to know about the market?",
     suggestions: [
       "What mattered in markets today?",
       "What moved software stocks?",
@@ -51,7 +57,8 @@ const MODES: Record<
 
   research: {
     title: "RESEARCH",
-    description: "Investigate evidence and primary sources.",
+    description:
+      "Investigate evidence and primary sources.",
     starter:
       "What are we investigating? I can search the web, retrieve SEC filings, and analyze documents.",
     suggestions: [
@@ -63,7 +70,8 @@ const MODES: Record<
 
   code: {
     title: "CODE",
-    description: "Turn the idea into quantitative research.",
+    description:
+      "Turn the idea into quantitative research.",
     starter:
       "Tell me the idea. I can help build it in Python or C++.",
     suggestions: [
@@ -84,13 +92,21 @@ function CodeBlock({
   ...props
 }: any) {
   const language =
-    /language-([\w+-]+)/.exec(className || "")?.[1];
+    /language-([\w+-]+)/.exec(
+      className || ""
+    )?.[1];
 
-  const code = String(children).replace(/\n$/, "");
+  const code = String(children).replace(
+    /\n$/,
+    ""
+  );
 
   if (!language) {
     return (
-      <code className="inline-code" {...props}>
+      <code
+        className="inline-code"
+        {...props}
+      >
         {children}
       </code>
     );
@@ -99,12 +115,16 @@ function CodeBlock({
   return (
     <div className="code-shell">
       <div className="code-head">
-        <span>{language.toUpperCase()}</span>
+        <span>
+          {language.toUpperCase()}
+        </span>
 
         <button
           className="copy-button"
           onClick={() =>
-            navigator.clipboard.writeText(code)
+            navigator.clipboard.writeText(
+              code
+            )
           }
           type="button"
         >
@@ -113,20 +133,30 @@ function CodeBlock({
       </div>
 
       <pre>
-        <code className={className}>{code}</code>
+        <code className={className}>
+          {code}
+        </code>
       </pre>
     </div>
   );
 }
 
-function Markdown({ children }: { children: string }) {
+function Markdown({
+  children
+}: {
+  children: string;
+}) {
   return (
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           code: CodeBlock,
-          a({ children, ...props }) {
+
+          a({
+            children,
+            ...props
+          }) {
             return (
               <a
                 {...props}
@@ -146,35 +176,87 @@ function Markdown({ children }: { children: string }) {
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] =
+    useState<Mode | null>(null);
 
-  const [file, setFile] = useState<UploadedFile | null>(
-    null
-  );
-  const [uploading, setUploading] = useState(false);
+  const [
+    messages,
+    setMessages
+  ] = useState<Message[]>([]);
 
-  const [listening, setListening] = useState(false);
-  const [voiceError, setVoiceError] = useState("");
+  const [input, setInput] =
+    useState("");
 
-  const abortRef = useRef<AbortController | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] =
+    useState("");
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const dcRef = useRef<RTCDataChannel | null>(null);
-  const mediaRef = useRef<MediaStream | null>(null);
+  const [loading, setLoading] =
+    useState(false);
 
-  const voiceBaseRef = useRef("");
-  const voicePartialRef = useRef("");
-  const voiceCloseTimerRef = useRef<
-    ReturnType<typeof setTimeout> | undefined
-  >(undefined);
+  const [file, setFile] =
+    useState<UploadedFile | null>(
+      null
+    );
 
-  const activeMode = mode || "research";
+  const [
+    uploading,
+    setUploading
+  ] = useState(false);
+
+  const [
+    listening,
+    setListening
+  ] = useState(false);
+
+  const [
+    voiceError,
+    setVoiceError
+  ] = useState("");
+
+  const abortRef =
+    useRef<AbortController | null>(
+      null
+    );
+
+  const fileInputRef =
+    useRef<HTMLInputElement | null>(
+      null
+    );
+
+  const bottomRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
+  const pcRef =
+    useRef<RTCPeerConnection | null>(
+      null
+    );
+
+  const dcRef =
+    useRef<RTCDataChannel | null>(
+      null
+    );
+
+  const mediaRef =
+    useRef<MediaStream | null>(
+      null
+    );
+
+  const voiceBaseRef =
+    useRef("");
+
+  const voicePartialRef =
+    useRef("");
+
+  const voiceCloseTimerRef =
+    useRef<
+      ReturnType<typeof setTimeout> |
+        undefined
+    >(undefined);
+
+  const activeMode =
+    mode || "research";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -183,48 +265,96 @@ export default function Home() {
     });
   }, [messages, status]);
 
+  /*
+   * Clean up microphone/WebRTC if the user
+   * leaves the page.
+   */
+  useEffect(() => {
+    return () => {
+      if (
+        voiceCloseTimerRef.current
+      ) {
+        clearTimeout(
+          voiceCloseTimerRef.current
+        );
+      }
+
+      mediaRef.current
+        ?.getTracks()
+        .forEach((track) =>
+          track.stop()
+        );
+
+      dcRef.current?.close();
+      pcRef.current?.close();
+    };
+  }, []);
+
   function selectMode(next: Mode) {
     setMode(next);
   }
 
-  function useSuggestion(value: string) {
+  function useSuggestion(
+    value: string
+  ) {
     setInput(value);
   }
 
   async function uploadPdf(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const selected = event.target.files?.[0];
+    const selected =
+      event.target.files?.[0];
+
     event.target.value = "";
 
     if (!selected) return;
 
-    if (selected.type !== "application/pdf") {
+    if (
+      selected.type !==
+      "application/pdf"
+    ) {
       setStatus("PDF files only");
       return;
     }
 
-    if (selected.size > 8 * 1024 * 1024) {
+    if (
+      selected.size >
+      8 * 1024 * 1024
+    ) {
       setStatus("PDF limit: 8 MB");
       return;
     }
 
     setUploading(true);
-    setStatus("Uploading document");
+    setStatus(
+      "Uploading document"
+    );
 
     try {
       const form = new FormData();
-      form.append("file", selected);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: form
-      });
+      form.append(
+        "file",
+        selected
+      );
 
-      const result = await response.json();
+      const response = await fetch(
+        "/api/upload",
+        {
+          method: "POST",
+          body: form
+        }
+      );
+
+      const result =
+        await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Upload failed.");
+        throw new Error(
+          result.error ||
+            "Upload failed."
+        );
       }
 
       setFile({
@@ -232,7 +362,11 @@ export default function Home() {
         name: result.name
       });
 
-      setMode((current) => current || "research");
+      setMode(
+        (current) =>
+          current || "research"
+      );
+
       setStatus("");
     } catch (error) {
       setStatus(
@@ -247,12 +381,15 @@ export default function Home() {
 
   async function removeFile() {
     const existing = file;
+
     setFile(null);
 
     if (!existing) return;
 
     fetch(
-      `/api/upload?id=${encodeURIComponent(existing.id)}`,
+      `/api/upload?id=${encodeURIComponent(
+        existing.id
+      )}`,
       {
         method: "DELETE"
       }
@@ -260,22 +397,103 @@ export default function Home() {
   }
 
   function cleanupVoice() {
-    if (voiceCloseTimerRef.current) {
-      clearTimeout(voiceCloseTimerRef.current);
+    if (
+      voiceCloseTimerRef.current
+    ) {
+      clearTimeout(
+        voiceCloseTimerRef.current
+      );
+
+      voiceCloseTimerRef.current =
+        undefined;
     }
 
     mediaRef.current
       ?.getTracks()
-      .forEach((track) => track.stop());
+      .forEach((track) =>
+        track.stop()
+      );
 
-    dcRef.current?.close();
-    pcRef.current?.close();
+    try {
+      dcRef.current?.close();
+    } catch {
+      // Already closed.
+    }
+
+    try {
+      pcRef.current?.close();
+    } catch {
+      // Already closed.
+    }
 
     mediaRef.current = null;
     dcRef.current = null;
     pcRef.current = null;
 
     setListening(false);
+  }
+
+  async function waitForDataChannel(
+    dc: RTCDataChannel
+  ) {
+    if (dc.readyState === "open") {
+      return;
+    }
+
+    await new Promise<void>(
+      (resolve, reject) => {
+        const timeout = setTimeout(
+          () => {
+            cleanup();
+            reject(
+              new Error(
+                "Voice connection timed out."
+              )
+            );
+          },
+          7000
+        );
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+
+          dc.removeEventListener(
+            "open",
+            handleOpen
+          );
+
+          dc.removeEventListener(
+            "error",
+            handleError
+          );
+        };
+
+        const handleOpen = () => {
+          cleanup();
+          resolve();
+        };
+
+        const handleError = () => {
+          cleanup();
+
+          reject(
+            new Error(
+              "Voice connection failed."
+            )
+          );
+        };
+
+        dc.addEventListener(
+          "open",
+          handleOpen
+        );
+
+        dc.addEventListener(
+          "error",
+          handleError
+        );
+      }
+    );
   }
 
   async function startVoice() {
@@ -285,122 +503,238 @@ export default function Home() {
     }
 
     setVoiceError("");
-    setStatus("Opening microphone");
+    setStatus(
+      "Opening microphone"
+    );
 
     try {
-      const tokenResponse = await fetch(
-        "/api/realtime-token",
-        {
-          method: "POST"
-        }
-      );
+      /*
+       * 1. Ask Maverro's Vercel backend for
+       *    a temporary OpenAI Realtime key.
+       */
+      const tokenResponse =
+        await fetch(
+          "/api/realtime-token",
+          {
+            method: "POST",
+            cache: "no-store"
+          }
+        );
 
-      const token = await tokenResponse.json();
+      const token =
+        await tokenResponse.json();
 
-      if (!tokenResponse.ok || !token.value) {
+      if (
+        !tokenResponse.ok ||
+        !token.value
+      ) {
         throw new Error(
-          token.error || "Voice could not start."
+          token.error ||
+            "Voice could not start."
         );
       }
 
+      /*
+       * 2. Ask the browser for microphone
+       *    permission.
+       */
       const media =
-        await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
+        await navigator.mediaDevices.getUserMedia(
+          {
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
           }
-        });
+        );
 
       mediaRef.current = media;
 
-      const pc = new RTCPeerConnection();
+      /*
+       * 3. Establish WebRTC.
+       */
+      const pc =
+        new RTCPeerConnection();
+
       pcRef.current = pc;
 
       media
         .getAudioTracks()
-        .forEach((track) => pc.addTrack(track, media));
+        .forEach((track) => {
+          pc.addTrack(
+            track,
+            media
+          );
+        });
 
-      const dc = pc.createDataChannel("oai-events");
+      /*
+       * No remote audio is expected.
+       * Maverro is voice-in / text-out.
+       */
+      const dc =
+        pc.createDataChannel(
+          "oai-events"
+        );
+
       dcRef.current = dc;
 
-      voiceBaseRef.current = input
-        ? `${input.trim()} `
-        : "";
+      voiceBaseRef.current =
+        input.trim()
+          ? `${input.trim()} `
+          : "";
 
-      voicePartialRef.current = "";
+      voicePartialRef.current =
+        "";
 
-      dc.addEventListener("message", (event) => {
-        try {
-          const message = JSON.parse(event.data);
+      /*
+       * 4. Receive live transcript deltas.
+       */
+      dc.addEventListener(
+        "message",
+        (event) => {
+          try {
+            const message =
+              JSON.parse(
+                event.data
+              );
 
-          if (
-            message.type ===
-            "conversation.item.input_audio_transcription.delta"
-          ) {
-            voicePartialRef.current += message.delta || "";
+            if (
+              message.type ===
+              "conversation.item.input_audio_transcription.delta"
+            ) {
+              voicePartialRef.current +=
+                message.delta || "";
 
-            setInput(
-              voiceBaseRef.current +
-                voicePartialRef.current
-            );
-          }
+              setInput(
+                voiceBaseRef.current +
+                  voicePartialRef.current
+              );
+            }
 
-          if (
-            message.type ===
-            "conversation.item.input_audio_transcription.completed"
-          ) {
-            const transcript =
-              message.transcript ||
-              voicePartialRef.current;
+            if (
+              message.type ===
+              "conversation.item.input_audio_transcription.completed"
+            ) {
+              const transcript =
+                message.transcript ||
+                voicePartialRef.current;
 
-            voicePartialRef.current = transcript;
+              voicePartialRef.current =
+                transcript;
 
-            setInput(
-              voiceBaseRef.current + transcript.trim()
-            );
-          }
+              setInput(
+                voiceBaseRef.current +
+                  transcript.trim()
+              );
 
-          if (
-            message.type ===
-            "conversation.item.input_audio_transcription.failed"
-          ) {
-            setVoiceError(
-              "I couldn't transcribe that. Try again."
-            );
-          }
-        } catch {
-          // Ignore unrelated realtime events.
-        }
-      });
+              /*
+               * We have the final committed transcript.
+               * Close the voice transport shortly after.
+               */
+              voiceCloseTimerRef.current =
+                setTimeout(
+                  cleanupVoice,
+                  150
+                );
+            }
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+            if (
+              message.type ===
+              "conversation.item.input_audio_transcription.failed"
+            ) {
+              setVoiceError(
+                message?.error?.message ||
+                  "I couldn't transcribe that. Try again."
+              );
+            }
 
-      const sdpResponse = await fetch(
-        "https://api.openai.com/v1/realtime",
-        {
-          method: "POST",
-          body: offer.sdp,
-          headers: {
-            Authorization: `Bearer ${token.value}`,
-            "Content-Type": "application/sdp"
+            if (
+              message.type === "error"
+            ) {
+              console.error(
+                "Realtime voice event error:",
+                message
+              );
+
+              setVoiceError(
+                message?.error?.message ||
+                  "Voice transcription encountered an error."
+              );
+            }
+          } catch {
+            /*
+             * Ignore unrelated or malformed
+             * realtime events.
+             */
           }
         }
       );
 
+      /*
+       * 5. Generate the local SDP offer.
+       */
+      const offer =
+        await pc.createOffer();
+
+      await pc.setLocalDescription(
+        offer
+      );
+
+      if (!offer.sdp) {
+        throw new Error(
+          "Could not initialize voice."
+        );
+      }
+
+      /*
+       * 6. Connect directly to the current
+       *    OpenAI Realtime WebRTC endpoint
+       *    using ONLY the temporary key.
+       */
+      const sdpResponse =
+        await fetch(
+          "https://api.openai.com/v1/realtime/calls",
+          {
+            method: "POST",
+
+            body: offer.sdp,
+
+            headers: {
+              Authorization:
+                `Bearer ${token.value}`,
+
+              "Content-Type":
+                "application/sdp"
+            }
+          }
+        );
+
+      const answerSdp =
+        await sdpResponse.text();
+
       if (!sdpResponse.ok) {
+        console.error(
+          "OpenAI Realtime SDP error:",
+          sdpResponse.status,
+          answerSdp
+        );
+
         throw new Error(
           "Realtime voice connection failed."
         );
       }
 
-      const answer = await sdpResponse.text();
-
       await pc.setRemoteDescription({
         type: "answer",
-        sdp: answer
+        sdp: answerSdp
       });
+
+      /*
+       * Do not claim we're listening until
+       * the Realtime data channel is usable.
+       */
+      await waitForDataChannel(dc);
 
       setListening(true);
       setStatus("");
@@ -412,44 +746,81 @@ export default function Home() {
           ? error.message
           : "Voice unavailable.";
 
+      /*
+       * Keep the voice error local to the
+       * composer instead of duplicating it
+       * in the global activity indicator.
+       */
       setVoiceError(text);
-      setStatus(text);
+      setStatus("");
     }
   }
 
   function stopVoice() {
+    /*
+     * Change visual state immediately.
+     */
     setListening(false);
 
+    /*
+     * Stop adding new microphone audio.
+     */
     mediaRef.current
       ?.getAudioTracks()
       .forEach((track) => {
         track.enabled = false;
       });
 
+    /*
+     * Because turn_detection is disabled in
+     * the transcription session, Maverro
+     * explicitly commits the captured turn.
+     */
     try {
-      if (dcRef.current?.readyState === "open") {
+      if (
+        dcRef.current?.readyState ===
+        "open"
+      ) {
         dcRef.current.send(
           JSON.stringify({
-            type: "input_audio_buffer.commit"
+            type:
+              "input_audio_buffer.commit"
           })
         );
       }
-    } catch {
-      // VAD may already have committed the turn.
+    } catch (error) {
+      console.error(
+        "Voice commit error:",
+        error
+      );
     }
 
-    voiceCloseTimerRef.current = setTimeout(
-      cleanupVoice,
-      1200
-    );
+    /*
+     * Give the final transcription event
+     * enough time to return.
+     *
+     * The completed-event handler usually
+     * closes the connection earlier.
+     */
+    voiceCloseTimerRef.current =
+      setTimeout(
+        cleanupVoice,
+        3000
+      );
   }
 
   async function sendMessage() {
     const text = input.trim();
 
-    if (!text || loading) return;
+    if (!text || loading) {
+      return;
+    }
 
-    if (listening) stopVoice();
+    if (listening) {
+      stopVoice();
+    }
+
+    setVoiceError("");
 
     const userMessage: Message = {
       id: id(),
@@ -459,11 +830,12 @@ export default function Home() {
 
     const assistantId = id();
 
-    const assistantMessage: Message = {
-      id: assistantId,
-      role: "assistant",
-      content: ""
-    };
+    const assistantMessage: Message =
+      {
+        id: assistantId,
+        role: "assistant",
+        content: ""
+      };
 
     const nextMessages = [
       ...messages,
@@ -479,116 +851,181 @@ export default function Home() {
     setLoading(true);
     setStatus("Working");
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const controller =
+      new AbortController();
+
+    abortRef.current =
+      controller;
 
     try {
-      const response = await fetch("/api/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          mode: activeMode,
-          fileId: file?.id || null,
-          messages: nextMessages.map(
-            ({ role, content }) => ({
-              role,
-              content
-            })
-          )
-        })
-      });
+      const response = await fetch(
+        "/api/ask",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          signal:
+            controller.signal,
+
+          body: JSON.stringify({
+            mode: activeMode,
+            fileId:
+              file?.id || null,
+
+            messages:
+              nextMessages.map(
+                ({
+                  role,
+                  content
+                }) => ({
+                  role,
+                  content
+                })
+              )
+          })
+        }
+      );
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({}));
+        const error =
+          await response
+            .json()
+            .catch(() => ({}));
 
         throw new Error(
-          error.error || `Request failed (${response.status})`
+          error.error ||
+            `Request failed (${response.status})`
         );
       }
 
       if (!response.body) {
-        throw new Error("No response stream.");
+        throw new Error(
+          "No response stream."
+        );
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      const reader =
+        response.body.getReader();
+
+      const decoder =
+        new TextDecoder();
 
       let buffer = "";
 
       while (true) {
-        const { value, done } = await reader.read();
+        const {
+          value,
+          done
+        } = await reader.read();
 
         if (done) break;
 
-        buffer += decoder.decode(value, {
-          stream: true
-        });
+        buffer += decoder.decode(
+          value,
+          {
+            stream: true
+          }
+        );
 
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const lines =
+          buffer.split("\n");
+
+        buffer =
+          lines.pop() || "";
 
         for (const line of lines) {
-          if (!line.trim()) continue;
+          if (!line.trim()) {
+            continue;
+          }
 
           let event: any;
 
           try {
-            event = JSON.parse(line);
+            event =
+              JSON.parse(line);
           } catch {
             continue;
           }
 
-          if (event.type === "status") {
-            setStatus(event.text);
+          if (
+            event.type ===
+            "status"
+          ) {
+            setStatus(
+              event.text
+            );
           }
 
-          if (event.type === "delta") {
+          if (
+            event.type ===
+            "delta"
+          ) {
             setStatus("");
 
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? {
-                      ...message,
-                      content:
-                        message.content + event.text
-                    }
-                  : message
-              )
+            setMessages(
+              (current) =>
+                current.map(
+                  (message) =>
+                    message.id ===
+                    assistantId
+                      ? {
+                          ...message,
+                          content:
+                            message.content +
+                            event.text
+                        }
+                      : message
+                )
             );
           }
 
-          if (event.type === "sources") {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? {
-                      ...message,
-                      sources: event.sources
-                    }
-                  : message
-              )
+          if (
+            event.type ===
+            "sources"
+          ) {
+            setMessages(
+              (current) =>
+                current.map(
+                  (message) =>
+                    message.id ===
+                    assistantId
+                      ? {
+                          ...message,
+                          sources:
+                            event.sources
+                        }
+                      : message
+                )
             );
           }
 
-          if (event.type === "error") {
-            throw new Error(event.text);
+          if (
+            event.type ===
+            "error"
+          ) {
+            throw new Error(
+              event.text
+            );
           }
 
-          if (event.type === "done") {
+          if (
+            event.type ===
+            "done"
+          ) {
             setStatus("");
           }
         }
       }
     } catch (error) {
       if (
-        error instanceof DOMException &&
-        error.name === "AbortError"
+        error instanceof
+          DOMException &&
+        error.name ===
+          "AbortError"
       ) {
         setStatus("");
       } else {
@@ -599,17 +1036,20 @@ export default function Home() {
 
         setStatus("");
 
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantId
-              ? {
-                  ...message,
-                  content:
-                    message.content ||
-                    `**Temporary error:** ${text}`
-                }
-              : message
-          )
+        setMessages(
+          (current) =>
+            current.map(
+              (message) =>
+                message.id ===
+                assistantId
+                  ? {
+                      ...message,
+                      content:
+                        message.content ||
+                        `**Temporary error:** ${text}`
+                    }
+                  : message
+            )
         );
       }
     } finally {
@@ -620,6 +1060,7 @@ export default function Home() {
 
   function stopGeneration() {
     abortRef.current?.abort();
+
     setLoading(false);
     setStatus("");
   }
@@ -636,12 +1077,15 @@ export default function Home() {
     }
   }
 
-  const hasConversation = messages.length > 0;
+  const hasConversation =
+    messages.length > 0;
 
   return (
     <main
       className="shell"
-      data-mode={mode || "neutral"}
+      data-mode={
+        mode || "neutral"
+      }
     >
       <div className="ambient-grid" />
 
@@ -654,7 +1098,9 @@ export default function Home() {
               aria-hidden="true"
             />
 
-            <span>MAVERRO</span>
+            <span>
+              MAVERRO
+            </span>
           </div>
 
           <div className="status-pill">
@@ -665,7 +1111,9 @@ export default function Home() {
 
         <section
           className={`hero ${
-            hasConversation ? "compact" : ""
+            hasConversation
+              ? "compact"
+              : ""
           }`}
         >
           {!hasConversation && (
@@ -682,125 +1130,184 @@ export default function Home() {
 
           {!hasConversation && (
             <p>
-              A high-speed, voice-first AI research
-              copilot for markets, investment research,
-              and quantitative development.
+              A high-speed,
+              voice-first AI research
+              copilot for markets,
+              investment research,
+              and quantitative
+              development.
             </p>
           )}
         </section>
 
         <section className="mode-grid">
-          {(Object.keys(MODES) as Mode[]).map(
-            (key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => selectMode(key)}
-                className={`mode-card ${
-                  mode === key ? "active" : ""
-                }`}
-              >
-                <span className="mode-name">
-                  {MODES[key].title}
-                </span>
+          {(
+            Object.keys(
+              MODES
+            ) as Mode[]
+          ).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() =>
+                selectMode(key)
+              }
+              className={`mode-card ${
+                mode === key
+                  ? "active"
+                  : ""
+              }`}
+            >
+              <span className="mode-name">
+                {
+                  MODES[key]
+                    .title
+                }
+              </span>
 
-                <span className="mode-description">
-                  {MODES[key].description}
-                </span>
-              </button>
-            )
-          )}
+              <span className="mode-description">
+                {
+                  MODES[key]
+                    .description
+                }
+              </span>
+            </button>
+          ))}
         </section>
 
-        {!hasConversation && mode && (
-          <>
-            <div className="starter">
-              {MODES[mode].starter}
-            </div>
+        {!hasConversation &&
+          mode && (
+            <>
+              <div className="starter">
+                {
+                  MODES[mode]
+                    .starter
+                }
+              </div>
 
-            <div className="suggestions">
-              {MODES[mode].suggestions.map(
-                (suggestion) => (
-                  <button
-                    key={suggestion}
-                    className="suggestion"
-                    type="button"
-                    onClick={() =>
-                      useSuggestion(suggestion)
-                    }
-                  >
-                    {suggestion}
-                  </button>
-                )
-              )}
-            </div>
-          </>
-        )}
-
-        <section className="conversation">
-          {messages.map((message) => (
-            <article
-              key={message.id}
-              className={`message ${message.role}`}
-            >
-              <div className="message-inner">
-                {message.role === "assistant" && (
-                  <div className="message-label">
-                    MAVERRO
-                  </div>
-                )}
-
-                {message.role === "assistant" ? (
-                  <Markdown>
-                    {message.content ||
-                      (loading ? "" : "…")}
-                  </Markdown>
-                ) : (
-                  <div>{message.content}</div>
-                )}
-
-                {!!message.sources?.length && (
-                  <div className="sources">
-                    {message.sources.map(
-                      (source, index) => (
-                        <a
-                          className="source"
-                          key={`${source.url}-${index}`}
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={source.title}
-                        >
-                          {index + 1}.{" "}
-                          {source.title ||
-                            "Source"}
-                        </a>
-                      )
-                    )}
-                  </div>
+              <div className="suggestions">
+                {MODES[
+                  mode
+                ].suggestions.map(
+                  (
+                    suggestion
+                  ) => (
+                    <button
+                      key={
+                        suggestion
+                      }
+                      className="suggestion"
+                      type="button"
+                      onClick={() =>
+                        useSuggestion(
+                          suggestion
+                        )
+                      }
+                    >
+                      {
+                        suggestion
+                      }
+                    </button>
+                  )
                 )}
               </div>
-            </article>
-          ))}
+            </>
+          )}
+
+        <section className="conversation">
+          {messages.map(
+            (message) => (
+              <article
+                key={
+                  message.id
+                }
+                className={`message ${message.role}`}
+              >
+                <div className="message-inner">
+                  {message.role ===
+                    "assistant" && (
+                    <div className="message-label">
+                      MAVERRO
+                    </div>
+                  )}
+
+                  {message.role ===
+                  "assistant" ? (
+                    <Markdown>
+                      {message.content ||
+                        (loading
+                          ? ""
+                          : "…")}
+                    </Markdown>
+                  ) : (
+                    <div>
+                      {
+                        message.content
+                      }
+                    </div>
+                  )}
+
+                  {!!message.sources
+                    ?.length && (
+                    <div className="sources">
+                      {message.sources.map(
+                        (
+                          source,
+                          index
+                        ) => (
+                          <a
+                            className="source"
+                            key={`${source.url}-${index}`}
+                            href={
+                              source.url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={
+                              source.title
+                            }
+                          >
+                            {index +
+                              1}
+                            .{" "}
+                            {source.title ||
+                              "Source"}
+                          </a>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              </article>
+            )
+          )}
 
           {status && (
             <div className="activity">
               <span className="activity-pulse" />
+
               {status}
             </div>
           )}
 
-          <div ref={bottomRef} />
+          <div
+            ref={bottomRef}
+          />
         </section>
 
         <section className="composer-wrap">
           {file && (
             <div className="file-chip">
-              <span>PDF · {file.name}</span>
+              <span>
+                PDF ·{" "}
+                {file.name}
+              </span>
 
               <button
                 type="button"
-                onClick={removeFile}
+                onClick={
+                  removeFile
+                }
                 aria-label="Remove PDF"
               >
                 ×
@@ -817,10 +1324,17 @@ export default function Home() {
                   ? "Listening…"
                   : "Ask Maverro…"
               }
-              onChange={(event) =>
-                setInput(event.target.value)
+              onChange={(
+                event
+              ) =>
+                setInput(
+                  event.target
+                    .value
+                )
               }
-              onKeyDown={onKeyDown}
+              onKeyDown={
+                onKeyDown
+              }
             />
 
             <div className="composer-bottom">
@@ -830,7 +1344,9 @@ export default function Home() {
                   type="button"
                   title="Attach PDF"
                   aria-label="Attach PDF"
-                  disabled={uploading}
+                  disabled={
+                    uploading
+                  }
                   onClick={() =>
                     fileInputRef.current?.click()
                   }
@@ -840,15 +1356,21 @@ export default function Home() {
 
                 <input
                   className="hidden-input"
-                  ref={fileInputRef}
+                  ref={
+                    fileInputRef
+                  }
                   type="file"
                   accept="application/pdf,.pdf"
-                  onChange={uploadPdf}
+                  onChange={
+                    uploadPdf
+                  }
                 />
 
                 <button
                   className={`tool-button ${
-                    listening ? "listening" : ""
+                    listening
+                      ? "listening"
+                      : ""
                   }`}
                   type="button"
                   title={
@@ -861,9 +1383,13 @@ export default function Home() {
                       ? "Stop listening"
                       : "Talk to Maverro"
                   }
-                  onClick={startVoice}
+                  onClick={
+                    startVoice
+                  }
                 >
-                  {listening ? "■" : "●"}
+                  {listening
+                    ? "■"
+                    : "●"}
                 </button>
 
                 {listening && (
@@ -879,10 +1405,13 @@ export default function Home() {
                     style={{
                       marginLeft: 8,
                       fontSize: 10,
-                      color: "#8b9099"
+                      color:
+                        "#8b9099"
                     }}
                   >
-                    {voiceError}
+                    {
+                      voiceError
+                    }
                   </span>
                 )}
               </div>
@@ -891,7 +1420,8 @@ export default function Home() {
                 className="send-button"
                 type="button"
                 disabled={
-                  !input.trim() && !loading
+                  !input.trim() &&
+                  !loading
                 }
                 onClick={
                   loading
@@ -909,7 +1439,9 @@ export default function Home() {
                     : "Send message"
                 }
               >
-                {loading ? "■" : "↑"}
+                {loading
+                  ? "■"
+                  : "↑"}
               </button>
             </div>
           </div>
